@@ -1080,8 +1080,9 @@ const Theme = {
   },
 
   _updateButton(theme) {
+    // Mostramos el icono del modo AL QUE PUEDE CAMBIAR
     const btn = document.getElementById('themeToggle');
-    if (btn) btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
   }
 };
 
