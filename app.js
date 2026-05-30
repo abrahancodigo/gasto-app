@@ -1040,6 +1040,59 @@ document.addEventListener('click', (e) => {
 });
 
 // =============================================
+// 8. THEME TOGGLE (Claro / Oscuro)
+// =============================================
+const Theme = {
+  key: 'gastoapp_theme',
+
+  init() {
+    const saved = localStorage.getItem(this.key);
+    const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+    const theme = saved || (prefersLight ? 'light' : 'dark');
+    this.set(theme);
+    this._updateButton(theme);
+
+    // Listen for system changes if no saved preference
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+      if (!localStorage.getItem(this.key)) {
+        this.set(e.matches ? 'light' : 'dark');
+        this._updateButton(e.matches ? 'light' : 'dark');
+      }
+    });
+  },
+
+  set(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    // Update meta theme-color dynamically
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.content = theme === 'light' ? '#f1f5f9' : '#0f172a';
+    }
+  },
+
+  toggle() {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    this.set(next);
+    localStorage.setItem(this.key, next);
+    this._updateButton(next);
+    if (navigator.vibrate) navigator.vibrate(10);
+  },
+
+  _updateButton(theme) {
+    const btn = document.getElementById('themeToggle');
+    if (btn) btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+  }
+};
+
+// Theme toggle via delegated click
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-action="theme"], #themeToggle')) {
+    Theme.toggle();
+  }
+});
+
+// =============================================
 // INIT
 // =============================================
 function init() {
@@ -1050,6 +1103,7 @@ function init() {
   MonthSwipe.init();
   PullToRefresh.init();
   ContextMenu.init();
+  Theme.init();
 
   // Load data
   loadExpenses();
