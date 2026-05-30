@@ -2,14 +2,27 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GastoApp" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="application-name" content="GastoApp" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>" />
   <title>GastoApp</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>" />
 </head>
 <body>
+
+  <!-- ===== PULL TO REFRESH INDICATOR ===== -->
+  <div id="pullIndicator" class="pull-indicator">
+    <span class="spinner"></span>
+    <span>Actualizando...</span>
+  </div>
+
   <!-- ===== SCREEN: MAIN APP ===== -->
   <div id="app" class="app">
 
@@ -17,10 +30,13 @@
     <header class="header">
       <div class="header-top">
         <h1 class="header-title">💰 GastoApp</h1>
+        <div class="header-actions-right">
+          <button class="btn-header ripple" data-action="export" title="Exportar datos">📤</button>
+        </div>
       </div>
       <div class="header-balance" id="headerBalance">
         <span class="balance-label">Balance</span>
-        <span id="balanceDisplay" class="balance-value">$0</span>
+        <span id="balanceDisplay" class="balance-value balance-zero">$0</span>
       </div>
       <div class="header-resume">
         <span class="header-income" id="incomeDisplay">+$0</span>
@@ -30,23 +46,24 @@
 
     <!-- MONTH SELECTOR -->
     <div class="month-bar">
-      <button id="prevMonth" class="btn btn-icon">◀</button>
+      <button id="prevMonth" class="btn-month ripple">◀</button>
       <span id="currentMonth" class="month-label"></span>
-      <button id="nextMonth" class="btn btn-icon">▶</button>
+      <button class="btn-month ripple" data-action="today" style="display:none" title="Hoy">● Hoy</button>
+      <button id="nextMonth" class="btn-month ripple">▶</button>
     </div>
 
     <!-- SUMMARY CARDS -->
     <section class="section summary-section">
       <div class="summary-scroll">
-        <div class="summary-card card-income">
+        <div class="summary-card card-income ripple">
           <span class="s-label">Ingresos</span>
           <span class="s-value" id="sIncome">$0</span>
         </div>
-        <div class="summary-card card-expense">
+        <div class="summary-card card-expense ripple">
           <span class="s-label">Gastos</span>
           <span class="s-value" id="sExpense">$0</span>
         </div>
-        <div class="summary-card card-balance">
+        <div class="summary-card card-balance ripple">
           <span class="s-label">Balance</span>
           <span class="s-value" id="sBalance">$0</span>
         </div>
@@ -64,12 +81,13 @@
     <!-- ADD EXPENSE BUTTON (FAB) -->
     <button id="fabAdd" class="fab">+</button>
 
-    <!-- EXPENSE FORM MODAL -->
+    <!-- EXPENSE FORM MODAL (Bottom Sheet) -->
     <div id="modalOverlay" class="modal-overlay hidden">
       <div class="modal">
+        <div class="modal-handle"></div>
         <div class="modal-header">
-          <h2 id="modalTitle">Nuevo gasto</h2>
-          <button id="closeModal" class="btn btn-icon">✕</button>
+          <h2 id="modalTitle">Nuevo movimiento</h2>
+          <button id="closeModal" class="btn-icon ripple" aria-label="Cerrar">✕</button>
         </div>
         <form id="expenseForm">
           <!-- TYPE TOGGLE -->
@@ -81,13 +99,13 @@
 
           <div class="form-group">
             <label for="eDesc">Descripción</label>
-            <input type="text" id="eDesc" placeholder="Ej: Café, Uber..." required />
+            <input type="text" id="eDesc" placeholder="Ej: Café, Uber..." inputmode="text" autocomplete="off" required />
           </div>
           <div class="form-group">
             <label for="eAmount">Monto</label>
             <div class="input-currency">
               <span>$</span>
-              <input type="number" id="eAmount" placeholder="0.00" min="0.01" step="0.01" required />
+              <input type="number" id="eAmount" placeholder="0" min="0.01" step="1" inputmode="numeric" required />
             </div>
           </div>
           <div class="form-group">
@@ -99,7 +117,7 @@
             <select id="eCategory" required></select>
           </div>
           <input type="hidden" id="editingId" value="" />
-          <button type="submit" class="btn btn-primary btn-full" id="saveBtn">Guardar</button>
+          <button type="submit" class="btn btn-primary btn-full ripple" id="saveBtn">Guardar</button>
         </form>
       </div>
     </div>
@@ -109,13 +127,24 @@
       <div class="section-header">
         <h2>Movimientos</h2>
         <div class="header-actions">
-          <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar..." />
+          <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar..." inputmode="search" autocomplete="off" />
         </div>
       </div>
       <div id="expensesList" class="expenses-list"></div>
     </section>
   </div>
 
+  <!-- SNACKBAR CONTAINER -->
+  <div id="snackbarContainer" class="snackbar-container"></div>
+
   <script src="app.js"></script>
+  <script>
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>
