@@ -7,6 +7,15 @@ let expenses = [];
 let currentMonth = new Date();
 let editingId = null;
 
+// ---- MIGRATE OLD DATA ----
+function migrateExpense(e) {
+  // Old entries may lack 'type' — default to 'expense'
+  if (!e.type) e.type = 'expense';
+  if (!e.id) e.id = 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  if (!e.timestamp) e.timestamp = Date.now();
+  return e;
+}
+
 // ---- DOM REFS ----
 const $ = id => document.getElementById(id);
 
@@ -102,8 +111,10 @@ function todayStr() {
 // ---- LOCAL STORAGE ----
 function loadExpenses() {
   try {
-    expenses = JSON.parse(localStorage.getItem('gastoapp_expenses')) || [];
-  } catch {
+    const raw = JSON.parse(localStorage.getItem('gastoapp_expenses')) || [];
+    expenses = raw.map(migrateExpense);
+  } catch (e) {
+    console.warn('Error loading expenses:', e);
     expenses = [];
   }
 }
@@ -270,11 +281,15 @@ function renderMonth() {
 }
 
 function renderAll() {
-  renderMonth();
-  renderHeader();
-  renderSummary();
-  renderCategories();
-  renderExpenses();
+  try {
+    renderMonth();
+    renderHeader();
+    renderSummary();
+    renderCategories();
+    renderExpenses();
+  } catch (err) {
+    console.error('Error al renderizar:', err);
+  }
 }
 
 // ---- CRUD ----
@@ -380,31 +395,36 @@ modalOverlay.addEventListener('click', (e) => {
 // Form submit
 expenseForm.addEventListener('submit', (e) => {
   e.preventDefault();
-  const desc = eDesc.value.trim();
-  const amount = Number(eAmount.value);
-  const date = eDate.value;
-  const category = eCategory.value;
-  const type = eType.value;
+  try {
+    const desc = eDesc.value.trim();
+    const amount = Number(eAmount.value);
+    const date = eDate.value;
+    const category = eCategory.value;
+    const type = eType.value || 'expense';
 
-  if (!desc || !amount || !date || !category || !type) {
-    alert('Completa todos los campos');
-    return;
+    if (!desc || !amount || !date || !category) {
+      alert('Completa todos los campos');
+      return;
+    }
+
+    if (amount <= 0) {
+      alert('El monto debe ser mayor a 0');
+      return;
+    }
+
+    const editId = editingIdInput.value;
+
+    if (editId) {
+      updateExpense(editId, desc, amount, date, category, type);
+    } else {
+      addExpense(desc, amount, date, category, type);
+    }
+
+    closeModalFn();
+  } catch (err) {
+    console.error('Error al guardar:', err);
+    alert('Ocurrió un error al guardar. Revisa la consola.');
   }
-
-  if (amount <= 0) {
-    alert('El monto debe ser mayor a 0');
-    return;
-  }
-
-  const editId = editingIdInput.value;
-
-  if (editId) {
-    updateExpense(editId, desc, amount, date, category, type);
-  } else {
-    addExpense(desc, amount, date, category, type);
-  }
-
-  closeModalFn();
 });
 
 // Search
