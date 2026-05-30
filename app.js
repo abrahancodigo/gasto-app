@@ -843,22 +843,80 @@ function updateExpense(id, desc, amount, date, category, type) {
   renderAll();
 }
 
-function deleteExpense(id) {
-  const idx = expenses.findIndex(e => e.id === id);
-  if (idx === -1) return;
-  const deleted = expenses.splice(idx, 1)[0];
-  saveExpenses();
-  renderAll();
+// =============================================
+// CONFIRMATION DIALOG
+// =============================================
+function showConfirmDialog(title, message, onConfirm, confirmText = 'Eliminar', confirmStyle = 'danger') {
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-dialog">
+      <div class="confirm-title">${title}</div>
+      <div class="confirm-message">${message}</div>
+      <div class="confirm-actions">
+        <button class="confirm-btn confirm-btn-cancel ripple" id="confirmCancel">Cancelar</button>
+        <button class="confirm-btn confirm-btn-${confirmStyle} ripple" id="confirmOk">${confirmText}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
 
-  Snackbar.show('Movimiento eliminado', {
-    label: 'Deshacer',
-    cb: () => {
-      expenses.splice(idx, 0, deleted);
+  const cancelBtn = overlay.querySelector('#confirmCancel');
+  const okBtn = overlay.querySelector('#confirmOk');
+
+  function close() {
+    overlay.classList.add('hidden');
+    overlay.addEventListener('animationend', () => overlay.remove(), { once: true });
+  }
+
+  cancelBtn.addEventListener('click', close);
+  okBtn.addEventListener('click', () => {
+    close();
+    onConfirm();
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+
+  // Keyboard: Escape to cancel
+  const keyHandler = (e) => {
+    if (e.key === 'Escape') { close(); document.removeEventListener('keydown', keyHandler); }
+  };
+  document.addEventListener('keydown', keyHandler);
+}
+
+function deleteExpense(id) {
+  const exp = expenses.find(e => e.id === id);
+  if (!exp) return;
+
+  const isExpense = exp.type === 'expense';
+  const icon = isExpense ? '💸' : '💰';
+  const type = isExpense ? 'gasto' : 'ingreso';
+  const amount = formatCurrency(exp.amount);
+
+  showConfirmDialog(
+    'Eliminar movimiento',
+    `${icon} ¿Eliminar ${type} de <strong>${amount}</strong> por "${escapeHtml(exp.desc)}"?`,
+    () => {
+      const idx = expenses.findIndex(e => e.id === id);
+      if (idx === -1) return;
+      const deleted = expenses.splice(idx, 1)[0];
       saveExpenses();
       renderAll();
-      Snackbar.show('Movimiento restaurado');
-    }
-  }, 5000);
+
+      Snackbar.show('Movimiento eliminado', {
+        label: 'Deshacer',
+        cb: () => {
+          expenses.splice(idx, 0, deleted);
+          saveExpenses();
+          renderAll();
+          Snackbar.show('Movimiento restaurado');
+        }
+      }, 5000);
+    },
+    'Eliminar',
+    'danger'
+  );
 }
 
 function editExpense(id) {
