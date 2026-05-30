@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>GastoApp</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>" />
+</head>
+<body>
+  <!-- ===== SCREEN: MAIN APP ===== -->
+  <div id="app" class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-top">
+        <h1 class="header-title">💰 GastoApp</h1>
+      </div>
+      <div class="header-resume">
+        <span id="totalDisplay" class="header-total">$0</span>
+        <span id="countDisplay" class="header-count">0 gastos</span>
+      </div>
+    </header>
+
+    <!-- MONTH SELECTOR -->
+    <div class="month-bar">
+      <button id="prevMonth" class="btn btn-icon">◀</button>
+      <span id="currentMonth" class="month-label"></span>
+      <button id="nextMonth" class="btn btn-icon">▶</button>
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <section class="section summary-section">
+      <div class="summary-scroll">
+        <div class="summary-card card-total">
+          <span class="s-label">Total</span>
+          <span class="s-value" id="sTotal">$0</span>
+        </div>
+        <div class="summary-card card-avg">
+          <span class="s-label">Promedio/día</span>
+          <span class="s-value" id="sAvg">$0</span>
+        </div>
+        <div class="summary-card card-max">
+          <span class="s-label">Mayor gasto</span>
+          <span class="s-value" id="sMax">$0</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- CATEGORIES -->
+    <section class="section">
+      <div class="section-header">
+        <h2>Por categoría</h2>
+      </div>
+      <div id="categoriesBreakdown" class="categories-list"></div>
+    </section>
+
+    <!-- ADD EXPENSE BUTTON (FAB) -->
+    <button id="fabAdd" class="fab">+</button>
+
+    <!-- EXPENSE FORM MODAL -->
+    <div id="modalOverlay" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 id="modalTitle">Nuevo gasto</h2>
+          <button id="closeModal" class="btn btn-icon">✕</button>
+        </div>
+        <form id="expenseForm">
+          <div class="form-group">
+            <label for="eDesc">Descripción</label>
+            <input type="text" id="eDesc" placeholder="Ej: Café, Uber..." required />
+          </div>
+          <div class="form-group">
+            <label for="eAmount">Monto</label>
+            <div class="input-currency">
+              <span>$</span>
+              <input type="number" id="eAmount" placeholder="0.00" min="0.01" step="0.01" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="eDate">Fecha</label>
+            <input type="date" id="eDate" required />
+          </div>
+          <div class="form-group">
+            <label for="eCategory">Categoría</label>
+            <select id="eCategory" required>
+              <option value="Comida">🍔 Comida</option>
+              <option value="Transporte">🚗 Transporte</option>
+              <option value="Salud">💊 Salud</option>
+              <option value="Entretenimiento">🎬 Entretenimiento</option>
+              <option value="Hogar">🏠 Hogar</option>
+              <option value="Educación">📚 Educación</option>
+              <option value="Ropa">👕 Ropa</option>
+              <option value="Suscripciones">📡 Suscripciones</option>
+              <option value="Otro">📦 Otro</option>
+            </select>
+          </div>
+          <input type="hidden" id="editingId" value="" />
+          <button type="submit" class="btn btn-primary btn-full" id="saveBtn">Guardar</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- EXPENSE LIST -->
+    <section class="section" style="padding-bottom: 90px;">
+      <div class="section-header">
+        <h2>Gastos</h2>
+        <div class="header-actions">
+          <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar..." />
+        </div>
+      </div>
+      <div id="expensesList" class="expenses-list"></div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
