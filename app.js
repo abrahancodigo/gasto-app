@@ -10,12 +10,14 @@ let editingId = null;
 // ---- DOM REFS ----
 const $ = id => document.getElementById(id);
 
-const totalDisplay = $('totalDisplay');
-const countDisplay = $('countDisplay');
 const currentMonthEl = $('currentMonth');
-const sTotal = $('sTotal');
-const sAvg = $('sAvg');
-const sMax = $('sMax');
+const balanceDisplay = $('balanceDisplay');
+const headerBalance = $('headerBalance');
+const incomeDisplay = $('incomeDisplay');
+const expenseDisplay = $('expenseDisplay');
+const sIncome = $('sIncome');
+const sExpense = $('sExpense');
+const sBalance = $('sBalance');
 const categoriesBreakdown = $('categoriesBreakdown');
 const expensesList = $('expensesList');
 const modalOverlay = $('modalOverlay');
@@ -25,11 +27,14 @@ const eDesc = $('eDesc');
 const eAmount = $('eAmount');
 const eDate = $('eDate');
 const eCategory = $('eCategory');
+const eType = $('eType');
 const editingIdInput = $('editingId');
 const saveBtn = $('saveBtn');
 const searchInput = $('searchInput');
 const closeModal = $('closeModal');
 const fabAdd = $('fabAdd');
+const typeExpenseBtn = $('typeExpenseBtn');
+const typeIncomeBtn = $('typeIncomeBtn');
 
 // ---- HELPERS ----
 function formatCurrency(n) {
@@ -39,6 +44,50 @@ function formatCurrency(n) {
 function getMonthKey(date) {
   const d = new Date(date);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// ---- CATEGORIES ----
+const CATEGORIES = {
+  expense: [
+    { value: 'Comida', icon: '🍔', name: 'Comida' },
+    { value: 'Transporte', icon: '🚗', name: 'Transporte' },
+    { value: 'Salud', icon: '💊', name: 'Salud' },
+    { value: 'Entretenimiento', icon: '🎬', name: 'Entretenimiento' },
+    { value: 'Hogar', icon: '🏠', name: 'Hogar' },
+    { value: 'Educación', icon: '📚', name: 'Educación' },
+    { value: 'Ropa', icon: '👕', name: 'Ropa' },
+    { value: 'Suscripciones', icon: '📡', name: 'Suscripciones' },
+    { value: 'Otro', icon: '📦', name: 'Otro' },
+  ],
+  income: [
+    { value: 'Salario', icon: '💼', name: 'Salario' },
+    { value: 'Freelance', icon: '💻', name: 'Freelance' },
+    { value: 'Inversiones', icon: '📈', name: 'Inversiones' },
+    { value: 'Ventas', icon: '🏪', name: 'Ventas' },
+    { value: 'Regalo', icon: '🎁', name: 'Regalo' },
+    { value: 'Reembolso', icon: '🔄', name: 'Reembolso' },
+    { value: 'Otro', icon: '📦', name: 'Otro' },
+  ],
+};
+
+function getCatIcon(cat) {
+  for (const group of Object.values(CATEGORIES)) {
+    const found = group.find(c => c.value === cat);
+    if (found) return found.icon;
+  }
+  return '📦';
+}
+
+function populateCategorySelect(type, selectedValue) {
+  eCategory.innerHTML = '';
+  const cats = CATEGORIES[type] || CATEGORIES.expense;
+  cats.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.value;
+    opt.textContent = c.icon + ' ' + c.name;
+    if (c.value === selectedValue) opt.selected = true;
+    eCategory.appendChild(opt);
+  });
 }
 
 function formatMonthLabel(date) {
@@ -78,80 +127,86 @@ function getFilteredExpenses() {
 
 function renderHeader() {
   const filtered = getFilteredExpenses();
-  const total = filtered.reduce((s, e) => s + Number(e.amount), 0);
-  totalDisplay.textContent = formatCurrency(total);
-  countDisplay.textContent = `${filtered.length} gasto${filtered.length !== 1 ? 's' : ''} este mes`;
+  const totalIncome = filtered.filter(e => e.type === 'income').reduce((s, e) => s + Number(e.amount), 0);
+  const totalExpense = filtered.filter(e => e.type === 'expense').reduce((s, e) => s + Number(e.amount), 0);
+  const balance = totalIncome - totalExpense;
+
+  balanceDisplay.textContent = formatCurrency(Math.abs(balance));
+  balanceDisplay.className = 'balance-value ' + (balance > 0 ? 'balance-positive' : balance < 0 ? 'balance-negative' : 'balance-zero');
+  if (balance < 0) balanceDisplay.textContent = '-' + balanceDisplay.textContent;
+
+  incomeDisplay.textContent = '+' + formatCurrency(totalIncome);
+  expenseDisplay.textContent = '-' + formatCurrency(totalExpense);
 }
 
 function renderSummary() {
   const filtered = getFilteredExpenses();
-  const total = filtered.reduce((s, e) => s + Number(e.amount), 0);
-  const count = filtered.length;
+  const totalIncome = filtered.filter(e => e.type === 'income').reduce((s, e) => s + Number(e.amount), 0);
+  const totalExpense = filtered.filter(e => e.type === 'expense').reduce((s, e) => s + Number(e.amount), 0);
+  const balance = totalIncome - totalExpense;
 
-  sTotal.textContent = formatCurrency(total);
-
-  // Average per day based on days in month that have expenses, or all days with expenses
-  const daysWithExpenses = new Set(filtered.map(e => e.date)).size;
-  const actualDays = daysWithExpenses || 1;
-  sAvg.textContent = formatCurrency(total / actualDays);
-
-  // Max expense
-  const maxAmt = filtered.length ? Math.max(...filtered.map(e => Number(e.amount))) : 0;
-  sMax.textContent = formatCurrency(maxAmt);
+  sIncome.textContent = formatCurrency(totalIncome);
+  sExpense.textContent = formatCurrency(totalExpense);
+  sBalance.textContent = formatCurrency(Math.abs(balance));
+  sBalance.style.color = balance >= 0 ? 'var(--success)' : 'var(--danger)';
+  if (balance < 0) sBalance.textContent = '-' + sBalance.textContent;
 }
 
 function renderCategories() {
   const filtered = getFilteredExpenses();
-  const total = filtered.reduce((s, e) => s + Number(e.amount), 0);
 
   if (!filtered.length) {
-    categoriesBreakdown.innerHTML = '<div class="empty-state"><span class="empty-icon">📊</span><p>Sin gastos este mes</p></div>';
+    categoriesBreakdown.innerHTML = '<div class="empty-state"><span class="empty-icon">📊</span><p>Sin movimientos este mes</p></div>';
     return;
   }
 
-  // Group by category
-  const cats = {};
-  const catIcons = {
-    Comida: '🍔', Transporte: '🚗', Salud: '💊', Entretenimiento: '🎬',
-    Hogar: '🏠', Educación: '📚', Ropa: '👕', Suscripciones: '📡', Otro: '📦'
-  };
-  filtered.forEach(e => {
-    cats[e.category] = (cats[e.category] || 0) + Number(e.amount);
-  });
+  const expenseItems = filtered.filter(e => e.type === 'expense');
+  const incomeItems = filtered.filter(e => e.type === 'income');
+  const totalExpense = expenseItems.reduce((s, e) => s + Number(e.amount), 0);
+  const totalIncome = incomeItems.reduce((s, e) => s + Number(e.amount), 0);
 
-  const sorted = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+  function renderCatGroup(items, total, type) {
+    if (!items.length) return '';
+    const cats = {};
+    items.forEach(e => {
+      cats[e.category] = (cats[e.category] || 0) + Number(e.amount);
+    });
+    const sorted = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+    const label = type === 'expense' ? 'Gastos' : 'Ingresos';
 
-  categoriesBreakdown.innerHTML = sorted.map(([cat, amt]) => {
-    const pct = total > 0 ? (amt / total) * 100 : 0;
-    const icon = catIcons[cat] || '📦';
     return `
-      <div class="category-item">
-        <div class="category-icon">${icon}</div>
-        <div class="category-info">
-          <div class="category-name">${cat}</div>
-          <div class="category-bar-bg">
-            <div class="category-bar-fill" style="width:${pct}%"></div>
+      <div class="categories-section-title">${label}</div>
+      ${sorted.map(([cat, amt]) => {
+        const pct = total > 0 ? (amt / total) * 100 : 0;
+        const icon = getCatIcon(cat);
+        return `
+          <div class="category-item">
+            <div class="category-icon">${icon}</div>
+            <div class="category-info">
+              <div class="category-name">${cat}</div>
+              <div class="category-bar-bg">
+                <div class="category-bar-fill ${type === 'expense' ? 'is-expense' : 'is-income'}" style="width:${pct}%"></div>
+              </div>
+            </div>
+            <div class="category-amount">${formatCurrency(amt)}</div>
+            <div class="category-pct">${pct.toFixed(1)}%</div>
           </div>
-        </div>
-        <div class="category-amount">${formatCurrency(amt)}</div>
-        <div class="category-pct">${pct.toFixed(1)}%</div>
-      </div>
+        `;
+      }).join('')}
     `;
-  }).join('');
+  }
+
+  categoriesBreakdown.innerHTML = renderCatGroup(expenseItems, totalExpense, 'expense') + renderCatGroup(incomeItems, totalIncome, 'income');
 }
 
 function renderExpenses() {
   const filtered = getFilteredExpenses();
-  const catIcons = {
-    Comida: '🍔', Transporte: '🚗', Salud: '💊', Entretenimiento: '🎬',
-    Hogar: '🏠', Educación: '📚', Ropa: '👕', Suscripciones: '📡', Otro: '📦'
-  };
 
   if (!filtered.length) {
     expensesList.innerHTML = `
       <div class="empty-state">
         <span class="empty-icon">📭</span>
-        <p>No hay gastos</p>
+        <p>No hay movimientos</p>
         <p class="empty-sub" style="font-size:0.8rem;color:var(--text-muted);">Toca + para agregar</p>
       </div>
     `;
@@ -173,28 +228,32 @@ function renderExpenses() {
     const d = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
     const dayName = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()];
     const formattedDate = `${dayName} ${dateParts[2]} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][Number(dateParts[1])-1]}`;
-    const dayTotal = items.reduce((s, e) => s + Number(e.amount), 0);
+    const dayIncome = items.filter(e => e.type === 'income').reduce((s, e) => s + Number(e.amount), 0);
+    const dayExpense = items.filter(e => e.type === 'expense').reduce((s, e) => s + Number(e.amount), 0);
 
     return `
       <div class="expense-date-group" style="margin-top:${date === sortedDates[0] ? '0' : '16px'}">
         <div style="display:flex;justify-content:space-between;padding:4px 2px 6px;font-size:0.8rem;">
           <span style="font-weight:600;">${formattedDate}</span>
-          <span style="color:var(--text-muted);">${formatCurrency(dayTotal)}</span>
+          <span style="color:var(--text-secondary);font-weight:600;">${formatCurrency(dayIncome - dayExpense)}</span>
         </div>
-        ${items.map(e => `
+        ${items.map(e => {
+          const isExpense = e.type === 'expense';
+          const icon = getCatIcon(e.category);
+          return `
           <div class="expense-item">
-            <div class="expense-cat-icon">${catIcons[e.category] || '📦'}</div>
+            <div class="expense-cat-icon">${icon}</div>
             <div class="expense-info">
               <div class="expense-desc">${escapeHtml(e.desc)}</div>
-              <div class="expense-meta">${e.category}</div>
+              <div class="expense-meta">${e.category} · ${isExpense ? 'Gasto' : 'Ingreso'}</div>
             </div>
-            <div class="expense-amount">-${formatCurrency(e.amount)}</div>
+            <div class="expense-amount ${isExpense ? 'is-expense' : 'is-income'}">${isExpense ? '-' : '+'}${formatCurrency(e.amount)}</div>
             <div class="expense-actions">
               <button class="btn-icon-sm" onclick="editExpense('${e.id}')" title="Editar">✏️</button>
               <button class="btn-icon-sm danger" onclick="deleteExpense('${e.id}')" title="Eliminar">🗑️</button>
             </div>
           </div>
-        `).join('')}
+        `}).join('')}
       </div>
     `;
   }).join('');
@@ -219,13 +278,14 @@ function renderAll() {
 }
 
 // ---- CRUD ----
-function addExpense(desc, amount, date, category) {
+function addExpense(desc, amount, date, category, type) {
   const expense = {
     id: 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
     desc: desc.trim(),
     amount: Number(amount),
     date: date,
     category: category,
+    type: type,
     timestamp: Date.now()
   };
   expenses.push(expense);
@@ -234,10 +294,10 @@ function addExpense(desc, amount, date, category) {
   return expense;
 }
 
-function updateExpense(id, desc, amount, date, category) {
+function updateExpense(id, desc, amount, date, category, type) {
   const idx = expenses.findIndex(e => e.id === id);
   if (idx === -1) return;
-  expenses[idx] = { ...expenses[idx], desc: desc.trim(), amount: Number(amount), date, category };
+  expenses[idx] = { ...expenses[idx], desc: desc.trim(), amount: Number(amount), date, category, type };
   saveExpenses();
   renderAll();
 }
@@ -253,11 +313,15 @@ function editExpense(id) {
   const e = expenses.find(exp => exp.id === id);
   if (!e) return;
   editingId = e.id;
-  modalTitle.textContent = 'Editar gasto';
+  modalTitle.textContent = 'Editar movimiento';
   eDesc.value = e.desc;
   eAmount.value = e.amount;
   eDate.value = e.date;
-  eCategory.value = e.category;
+  eType.value = e.type;
+  // Update toggle buttons
+  typeExpenseBtn.classList.toggle('active', e.type === 'expense');
+  typeIncomeBtn.classList.toggle('active', e.type === 'income');
+  populateCategorySelect(e.type, e.category);
   editingIdInput.value = e.id;
   saveBtn.textContent = 'Actualizar';
   openModal();
@@ -269,8 +333,11 @@ function resetForm() {
   eDesc.value = '';
   eAmount.value = '';
   eDate.value = todayStr();
-  eCategory.value = 'Comida';
-  modalTitle.textContent = 'Nuevo gasto';
+  eType.value = 'expense';
+  typeExpenseBtn.classList.add('active');
+  typeIncomeBtn.classList.remove('active');
+  populateCategorySelect('expense', 'Comida');
+  modalTitle.textContent = 'Nuevo movimiento';
   saveBtn.textContent = 'Guardar';
 }
 
@@ -292,6 +359,19 @@ fabAdd.addEventListener('click', () => {
   openModal();
 });
 
+// Type toggle
+function setType(type) {
+  eType.value = type;
+  typeExpenseBtn.classList.toggle('active', type === 'expense');
+  typeIncomeBtn.classList.toggle('active', type === 'income');
+  // Update categories when type changes
+  const currentCat = eCategory.value;
+  populateCategorySelect(type, currentCat);
+}
+
+typeExpenseBtn.addEventListener('click', () => setType('expense'));
+typeIncomeBtn.addEventListener('click', () => setType('income'));
+
 closeModal.addEventListener('click', closeModalFn);
 modalOverlay.addEventListener('click', (e) => {
   if (e.target === modalOverlay) closeModalFn();
@@ -304,8 +384,9 @@ expenseForm.addEventListener('submit', (e) => {
   const amount = Number(eAmount.value);
   const date = eDate.value;
   const category = eCategory.value;
+  const type = eType.value;
 
-  if (!desc || !amount || !date || !category) {
+  if (!desc || !amount || !date || !category || !type) {
     alert('Completa todos los campos');
     return;
   }
@@ -318,9 +399,9 @@ expenseForm.addEventListener('submit', (e) => {
   const editId = editingIdInput.value;
 
   if (editId) {
-    updateExpense(editId, desc, amount, date, category);
+    updateExpense(editId, desc, amount, date, category, type);
   } else {
-    addExpense(desc, amount, date, category);
+    addExpense(desc, amount, date, category, type);
   }
 
   closeModalFn();
